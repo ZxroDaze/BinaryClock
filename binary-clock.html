@@ -3,10 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Week 0: Binary Clock</title> 
+<title>Binary Clock</title> 
 <style> 
   :root { --on: #4fd1c5; }
-button */ 
-body { background: #111; color: #ccc; font-family: monospace;
-text-align: center; padding; 20px
+  body {
+    background: #111; color: #ccc; font-family: monospace;
+    text-align: center; padding: 20px;
+  }
+  .bit {
+    width: 44px; height: 44px; box-sizing: border-box;
+    border: 2px solid #444; border-radius: 6px; background: #222; 
+  }
+  .bit.on {
+    background: var(--on); border-color: var(--on); 
+    box-shadow: 0 0 12px var (--on);
+  }
+  .labels { display: grid; grid-template-columns: repeat(6, 44px); gap: 12px;
+justify-content: center; }
+.labels span { text-align: center; font-size: 12px; color: #777; }
+#grid { display: grid; grid-template-columns: repeat(6, 44px); gap: 12px; 
+    justify-content: center; margin: 12px 0; }
+#readout { font-size: 26px; margin-top: 14px; }
+#binary { font-size: 26px; margin-top: 14px; }
+button {
+    margin: 6px; padding: 8px 14px; background; #333; color: #eee;
+    border: 1px solid #555; border-radius: 4px; cursor: pointer; 
 }
+button:hover { background: #444; }
+</style>
+</head>
+<body>
