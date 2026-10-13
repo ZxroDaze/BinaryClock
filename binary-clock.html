@@ -16,7 +16,7 @@
   }
   .bit.on {
     background: var(--on); border-color: var(--on); 
-    box-shadow: 0 0 12px var (--on);
+    box-shadow: 0 0 12px var(--on);
   }
   .labels { display: grid; grid-template-columns: repeat(6, 44px); gap: 12px;
 justify-content: center; }
@@ -26,10 +26,128 @@ justify-content: center; }
 #readout { font-size: 26px; margin-top: 14px; }
 #binary { font-size: 26px; margin-top: 14px; }
 button {
-    margin: 6px; padding: 8px 14px; background; #333; color: #eee;
+    margin: 6px; padding: 8px 14px; background: #333; color: #eee;
     border: 1px solid #555; border-radius: 4px; cursor: pointer; 
 }
 button:hover { background: #444; }
 </style>
 </head>
 <body>
+
+<h2>Binary Clock</h2>
+<p>Each column is one digit of the time. Each lit square is a <b>1</b>. Each square
+is worth 8,4,2 or 1.</p>
+
+<div class="labels">
+    <span>H</span><span>H</span><span>M</span><span>M</span><span>S</span><span>S</span>
+</div>
+<div id="grid"></div>
+<div id="readout"></div>
+<div id="binary"></div>
+
+<div>
+    <button id="modeBtn">Switch 12 / 24 hour </button>
+    <button id="colourBtn">Change Colour</button>  
+</div>
+
+<script>
+    // SETTINGS. Change these to see what happens.
+
+    const SETTINGS = {
+        twelveHour: false,  // true = 1-12, false = 0-23
+        updateEveryMs: 250,  // how often clock refreshes
+    };
+
+    const COLOURS = ['#4fd1c5', '#f6ad55', '#f56565', '#9f7aea', '#68d391'];
+    let colourIndex = 0; 
+
+    //Grid
+
+    const square = document.getElementById('grid');
+    const bits = [];
+
+    function buildGrid() {
+        for (let col = 0; col < 6; col++) {
+            bits.push([]);
+    }
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 6; col++) {
+            const sqaure = document.createElement('div');
+            sqaure.className = 'bit';
+            square.appendChild(sqaure);
+            bits[col][row] = sqaure;
+        }
+    }    
+}
+
+// Time displayed as digits
+
+function splitDigits(n) {
+    return [Math.floor(n / 10), n % 10];
+}
+
+//Update function that runs every few hundred miliseconds
+
+function update() {
+    const now = new Date(); 
+
+    let hours = now.getHours();
+    if (SETTINGS.twelveHour) {
+        hours = hours % 12; 
+        if (hours === 0) hours = 12;
+    }
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+
+    // six digits left to right
+    const digits = [
+        ...splitDigits(hours),
+        ...splitDigits(minutes),
+        ...splitDigits(seconds),
+    ];
+
+    // light up the correct sqaures
+    // A sqaure will be lit only when its weight is part of the digits value
+
+    for (let col = 0; col < 6; col++) {
+        const value = digits[col];
+        for (let row = 0; row <4; row++) {
+            const weight = 8 >> row;              // 8,4,2,1
+            const isOn = (value & weight) !==0;    
+            bits[col][row].classList.toggle('on', isOn);
+        }
+    }
+
+    // Text readouts underneath
+
+    const pad = (n) => String(n).padStart(2, '0');
+    document.getElementById('readout').textContent = 
+    `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+    // the seconds written in binary, as a 6-bit number
+
+    document.getElementById('binary').textContent =
+`seconds ${seconds} in binary = ${seconds.toString(2).padStart(6, '0')}`;
+}
+
+// BUTTONS
+
+document.getElementById('modeBtn').addEventListener('click', () => {
+    SETTINGS.twelveHour = !SETTINGS.twelveHour;
+    update();
+});
+
+document.getElementById('colourBtn').addEventListener('click', () => {
+    colourIndex = (colourIndex + 1) % COLOURS.length; 
+    document.documentElement.style.setProperty('--on', COLOURS[colourIndex]);
+});
+
+// START Function
+
+buildGrid();
+update();
+setInterval(update, SETTINGS.updateEveryMs);
+</script>
+
+</body>
+</html>
