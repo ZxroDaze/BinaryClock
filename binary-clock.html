@@ -2,151 +2,697 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Binary Clock</title> 
-<style> 
-  :root { --on: #4fd1c5; }
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Binary Clock</title>
+<style>
+
+  /* THEMES */
+  :root {
+    --on: #ff9a3c; --bg: #111; --panel: #1a1a1a; --line: #444;
+    --sq: clamp(26px, min(6.4vw, 5.6vh), 56px);         /* one square */
+    --gap: clamp(6px, 1.2vw, 14px);                      /* space between squares */
+    --gap-group: clamp(8px, 2vw, 22px);                  /* extra space between HH | MM | SS */
+    --tube-w: clamp(34px, min(8vw, 7.5vh), 80px);        /* width of one nixie tube */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    background: #111; color: #ccc; font-family: monospace;
-    text-align: center; padding: 20px;
+    background: var(--bg); color: #ccc; font-family: monospace;
+    text-align: center; margin: 0; line-height: 1.5;
+    padding: calc(clamp(8px, 2vh, 16px) + env(safe-area-inset-top, 0px))
+             calc(clamp(8px, 2vw, 20px) + env(safe-area-inset-right, 0px))
+             env(safe-area-inset-bottom, 0px)
+             calc(clamp(8px, 2vw, 20px) + env(safe-area-inset-left, 0px));
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh; overflow: hidden;
   }
+
+  h2 { color: var(--on); text-shadow: 0 0 10px var(--on); margin: 0 0 clamp(4px, 1vh, 10px); font-size: clamp(18px, 3.4vh, 26px); flex: none; }
+
+  /* SQUARES */
   .bit {
-    width: 44px; height: 44px; box-sizing: border-box;
-    border: 2px solid #444; border-radius: 6px; background: #222; 
+    width: var(--sq); height: var(--sq); flex: none;
+    border: 2px solid var(--line); border-radius: 6px; background: #222;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
-  .bit.on {
-    background: var(--on); border-color: var(--on); 
-    box-shadow: 0 0 12px var(--on);
+  .bit.on { background: var(--on); border-color: var(--on); box-shadow: 0 0 12px var(--on); }
+  .bit.click { cursor: pointer; }
+  /* margin: 0 auto centres the big square inside its card (it's a block with a fixed width) */
+  .bit.big { width: clamp(64px, 14vw, 96px); height: clamp(64px, 14vw, 96px); border-radius: 12px; margin: 0 auto; }
+
+  .col { display: flex; flex-direction: column; gap: var(--gap); align-items: center; }
+  .col .label { font-size: 12px; color: #777; height: 16px; line-height: 16px; }
+
+  .weights span { display: block; height: var(--sq); line-height: var(--sq); width: clamp(14px, 2vw, 24px); color: #777; font-size: clamp(10px, 1.6vw, 13px); }
+
+  .bitgrid { display: flex; gap: var(--gap); justify-content: center; align-items: flex-start; margin: clamp(8px, 2vh, 16px) 0; }
+  .bitgrid .gap { margin-left: var(--gap-group); }
+
+  /* NIXIE TUBES */
+  .nixie { display: flex; gap: calc(var(--gap) * 0.7); justify-content: center; align-items: center; margin: clamp(6px, 2.5vh, 20px) 0 clamp(4px, 1vh, 10px); }
+  .tube {
+    width: var(--tube-w); flex: none; aspect-ratio: 54 / 88; border-radius: 16px 16px 10px 10px;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 2px, transparent 2px 5px),
+      linear-gradient(180deg, #1d1612, #0c0907);
+    border: 2px solid #3a2c22;
+    box-shadow: inset 0 0 14px rgba(0,0,0,.9), 0 0 14px rgba(0,0,0,.6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(var(--tube-w) * 1.07); line-height: 1; color: var(--on);
+    text-shadow: 0 0 6px var(--on), 0 0 18px var(--on), 0 0 34px var(--on);
   }
-  .labels { display: grid; grid-template-columns: repeat(6, 44px); gap: 12px;
-justify-content: center; }
-.labels span { text-align: center; font-size: 12px; color: #777; }
-#grid { display: grid; grid-template-columns: repeat(6, 44px); gap: 12px; 
-    justify-content: center; margin: 12px 0; }
-#readout { font-size: 26px; margin-top: 14px; }
-#binary { font-size: 26px; margin-top: 14px; }
-button {
-    margin: 6px; padding: 8px 14px; background: #333; color: #eee;
-    border: 1px solid #555; border-radius: 4px; cursor: pointer; 
-}
-button:hover { background: #444; }
+  .tube.flick { animation: flick 0.35s ease; }
+  @keyframes flick {
+    0%   { opacity: 0.15; }
+    25%  { opacity: 1; }
+    40%  { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .sep { width: calc(var(--tube-w) * 0.22); flex: none; display: flex; flex-direction: column; gap: calc(var(--tube-w) * 0.36); align-items: center; margin: 0 2px; animation: pulse 1s steps(1) infinite; }
+  .sep i { width: 8px; height: 8px; border-radius: 50%; background: var(--on); box-shadow: 0 0 10px var(--on); }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* BUTTONS */
+  button {
+    margin: 4px; padding: clamp(8px, 1.6vh, 10px) clamp(12px, 2.5vw, 18px);
+    background: #222; color: #ccc; font-family: monospace; font-size: clamp(12px, 2.2vw, 15px);
+    border: 2px solid var(--line); border-radius: 6px; cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  button:hover { border-color: var(--on); color: var(--on); box-shadow: 0 0 12px var(--on); }
+  button:active { transform: scale(0.96); }
+
+  /* NAV */
+  nav { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; flex: none; }
+  nav button {
+    max-width: 260px; white-space: nowrap; overflow: hidden;
+    transition: color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease,
+                max-width 0.6s ease, opacity 0.6s ease, padding 0.6s ease, margin 0.6s ease;
+  }
+  nav button.locked {
+    max-width: 0; opacity: 0; padding-left: 0; padding-right: 0; margin-left: 0; margin-right: 0;
+    border-width: 0; pointer-events: none;
+  }
+  nav button.current { border-color: var(--on); color: var(--on); box-shadow: 0 0 12px var(--on); }
+
+  /* SLIDER */
+  #viewport {
+    flex: 1 1 0; min-height: 0; position: relative; overflow: hidden;
+    touch-action: pan-y;
+    background-image: radial-gradient(circle, rgba(255,255,255,.08) 1.5px, transparent 1.5px);
+    background-size: 36px 36px;
+    cursor: grab; user-select: none;
+  }
+  #viewport.dragging { cursor: grabbing; }
+  #viewport input { user-select: text; cursor: text; }
+  #track { position: absolute; top: 0; bottom: 0; left: 0; display: flex; will-change: transform; }
+
+  .page {
+    min-width: 0;
+    display: flex; flex-direction: column;
+    align-items: center;                       /* FIX: centres every child sideways, whatever margins it has */
+    overflow-y: auto; overflow-x: hidden;
+    padding: 0 clamp(12px, 3vw, 24px) clamp(12px, 3vh, 24px);
+  }
+  /* Auto margins on the first and last child centre the content vertically. When the content is
+     taller than the panel they shrink to 0 and the panel scrolls from the top, so nothing is cut off. */
+  .page > :first-child { margin-top: auto; }
+  .page > :last-child  { margin-bottom: auto; }
+  .page > * { width: 100%; max-width: 640px; flex: none; }
+
+  .page h3 { color: var(--on); text-shadow: 0 0 8px var(--on); margin: 0 0 8px; font-size: clamp(16px, 3vh, 22px); }
+  .page p { text-align: center; margin: 0.8em 0; }
+  .hint { font-size: 12px; color: #666; padding: 8px; flex: none; }
+
+  /* FIX: the binary readout shrinks to its text and is centred as a block,
+     instead of stretching full width with left-aligned text. */
+  .page > #binary {
+    width: auto; max-width: 100%; text-align: left; white-space: pre;
+    font-size: clamp(13px, 2.2vw, 17px); margin: 8px 0; overflow-x: auto;
+  }
+
+  /* EXPLAINER PAGE PARTS */
+  .card {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 16px; margin: 16px 0;
+  }
+  input[type=number] {
+    background: #222; color: var(--on); border: 2px solid var(--line); border-radius: 6px;
+    padding: 8px; font-family: monospace; font-size: 18px; width: 90px; text-align: center;
+  }
+  input[type=number]:focus { outline: none; border-color: var(--on); box-shadow: 0 0 12px var(--on); }
+  .big-text { font-size: clamp(16px, 3vw, 22px); color: var(--on); text-shadow: 0 0 8px var(--on); }
+  .dim { color: #777; font-size: 13px; }
+  .row { display: flex; gap: 20px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+  table { margin: 12px auto 0; border-collapse: collapse; max-width: 100%; }
+  td, th { padding: 6px clamp(8px, 2.5vw, 14px); border-bottom: 1px solid #333; }
+  th { color: #777; font-weight: normal; font-size: 13px; }
+  .lit { color: var(--on); }
+  .step { text-align: left; margin: 10px 0; overflow-wrap: anywhere; }
+  .step b { color: var(--on); }
+
+  /* SMALL SCREENS */
+  @media (max-height: 640px) {
+    .nixie { margin: 4px 0 2px; }
+    .bitgrid { margin: 4px 0; }
+    .hint { display: none; }
+    .card { padding: 10px; margin: 8px 0; }
+  }
+  /* Landscape phones: drop the intro sentence so the clock fits without scrolling. */
+  @media (max-height: 520px) {
+    .clock-intro { display: none; }
+    h2 { display: none; }
+  }
+  @media (max-width: 380px) {
+    nav button { font-size: 12px; padding: 6px 10px; }
+    .card { padding: 10px; }
+    .row { gap: 12px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sep { animation: none; }
+    .tube.flick { animation: none; }
+  }
+
 </style>
 </head>
 <body>
 
 <h2>Binary Clock</h2>
-<p>Each column is one digit of the time. Each lit square is a <b>1</b>. Each square
-is worth 8,4,2 or 1.</p>
 
-<div class="labels">
-    <span>H</span><span>H</span><span>M</span><span>M</span><span>S</span><span>S</span>
-</div>
-<div id="grid"></div>
-<div id="readout"></div>
-<div id="binary"></div>
+<nav>
+  <button data-page="clock">Clock</button>
+  <button data-page="bit">1 · A bit</button>
+  <button data-page="nibble">2 · Four bits</button>
+  <button data-page="split">3 · Digits</button>
+  <button data-page="test">4 · Testing a bit</button>
+  <button data-page="together">5 · All together</button>
+</nav>
 
-<div>
-    <button id="modeBtn">Switch 12 / 24 hour </button>
-    <button id="colourBtn">Change Colour</button>  
-</div>
+<div id="viewport"><div id="track">
+
+<!-- PANEL 0: the live clock -->
+<section class="page" id="page-clock">
+  <div class="nixie" id="nixie"></div>
+
+  <p class="clock-intro">Each column of squares is one digit of time.
+  A lit square is a <b>1</b>, worth 8, 4, 2 or 1. Add up the lit squares to get the digit.</p>
+
+  <div class="bitgrid" id="clockGrid"></div>
+  <div class="big-text" id="binary"></div>
+
+  <div>
+    <button id="modeBtn">Switch 12 / 24 hour format</button>
+    <button id="colourBtn">Change colour</button>
+  </div>
+</section>
+
+<!-- PANEL 1: one bit -->
+<section class="page" id="page-bit">
+  <h3>1 · A bit</h3>
+  <p>A bit is the smallest piece of information a computer has: a switch that is either
+  <b>off (0)</b> or <b>on (1)</b>. Everything on your screen, every song and every game is
+  built from billions of these. Click the square.</p>
+  <div class="card">
+    <div class="bit big click" id="demoBit"></div>
+    <p class="big-text" id="demoBitText">0 (off)</p>
+  </div>
+</section>
+
+<!-- PANEL 2: four bits make a number -->
+<section class="page" id="page-nibble">
+  <h3>2 · Four bits make a number</h3>
+  <p>One bit only counts 0 or 1. Put four in a row and give each a different <b>weight</b>:
+  8, 4, 2 and 1. Add up the weights of the lit squares and you get a number. Click the squares.</p>
+  <div class="card">
+    <div class="bitgrid" id="nibbleGrid"></div>
+    <div class="big-text" id="nibbleText"></div>
+    <p class="dim">Four bits can make 0 to 15. A clock digit only needs 0 to 9.</p>
+  </div>
+</section>
+
+<!-- PANEL 3: splitting a number into tens and units -->
+<section class="page" id="page-split">
+  <h3>3 · Why six columns?</h3>
+  <p>The clock does not store 13:07:45 as three big numbers. It splits each into two digits
+  (a tens digit and a units digit), and gives every digit its own column of four squares.
+  Type a number from 0 to 99.</p>
+  <div class="card">
+    <input type="number" id="splitInput" min="0" max="99" value="37" inputmode="numeric">
+    <div class="big-text" id="splitText" style="margin:12px 0"></div>
+    <div class="row" id="splitCols"></div>
+    <p class="dim">Tens digit = divide by 10 and drop the remainder. Units digit = the remainder.</p>
+  </div>
+</section>
+
+<!-- PANEL 4: the AND test -->
+<section class="page" id="page-test">
+  <h3>4 · How the computer tests a bit</h3>
+  <p>For each square, the code asks: <i>is this weight part of the number?</i> It uses
+  <b>&amp;</b> (AND), which keeps only the bits two numbers share. If the answer is not 0,
+  the square lights up. Type a number from 0 to 15, since four squares can show that much.</p>
+  <div class="card">
+    <input type="number" id="testInput" min="0" max="15" value="5" inputmode="numeric">
+    <div class="dim" id="testBinary" style="margin-top:10px"></div>
+    <table id="testTable"></table>
+  </div>
+</section>
+
+<!-- PANEL 5: the whole chain, live -->
+<section class="page" id="page-together">
+  <h3>5 · All together</h3>
+  <p>Here is the whole chain running live, one step feeding the next.</p>
+  <div class="card">
+    <div class="step"><b>1. Read the clock:</b> <span id="tgTime"></span></div>
+    <div class="step"><b>2. Split into digits:</b> <span id="tgDigits"></span></div>
+    <div class="step"><b>3. Each digit as 4 bits:</b> <span id="tgBits"></span></div>
+    <div class="step"><b>4. Light the squares:</b></div>
+    <div class="bitgrid" id="tgGrid"></div>
+    <p class="dim">Fun fact: the top square never lights in the minutes and seconds tens columns,
+    because those digits only go up to 5. The hours tens column only goes up to 2, so its top two squares stay dark.</p>
+  </div>
+</section>
+
+</div></div>
+<div class="hint">← drag, swipe, scroll or use the arrow keys →</div>
 
 <script>
-    // SETTINGS. Change these to see what happens.
 
-    const SETTINGS = {
-        twelveHour: false,  // true = 1-12, false = 0-23
-        updateEveryMs: 250,  // how often clock refreshes
-    };
+// SETTINGS
+const SETTINGS = {
+  twelveHour: false,     // true = 1 to 12, false = 0 to 23
+  updateEveryMs: 250,    // how often we re-read the clock
+};
 
-    const COLOURS = ['#4fd1c5', '#f6ad55', '#f56565', '#9f7aea', '#68d391'];
-    let colourIndex = 0; 
+const COLOURS = ['#ff9a3c', '#4fd1c5', '#f56565', '#9f7aea', '#68d391'];
+let colourIndex = 0;
 
-    //Grid
+// HELPERS
+function makeColumn(parent, label) {
+  const col = document.createElement('div');
+  col.className = 'col';
 
-    const square = document.getElementById('grid');
-    const bits = [];
+  const lab = document.createElement('div');
+  lab.className = 'label';
+  lab.textContent = label || '';
+  col.appendChild(lab);
 
-    function buildGrid() {
-        for (let col = 0; col < 6; col++) {
-            bits.push([]);
-    }
-    for (let row = 0; row < 4; row++) {
-        for (let col = 0; col < 6; col++) {
-            const sqaure = document.createElement('div');
-            sqaure.className = 'bit';
-            square.appendChild(sqaure);
-            bits[col][row] = sqaure;
-        }
-    }    
+  const squares = [];
+  for (let row = 0; row < 4; row++) {
+    const sq = document.createElement('div');
+    sq.className = 'bit';
+    col.appendChild(sq);
+    squares.push(sq);
+  }
+
+  parent.appendChild(col);
+  return squares;
 }
 
-// Time displayed as digits
+function setColumn(squares, value) {
+  for (let row = 0; row < 4; row++) {
+    const weight = 8 >> row;
+    const isOn = (value & weight) !== 0;
+    squares[row].classList.toggle('on', isOn);
+  }
+}
+
+function addWeights(parent) {
+  const w = document.createElement('div');
+  w.className = 'col weights';
+  w.innerHTML = '<div class="label"></div><span>8</span><span>4</span><span>2</span><span>1</span>';
+  parent.appendChild(w);
+}
+
+const pad = (n) => String(n).padStart(2, '0');
 
 function splitDigits(n) {
-    return [Math.floor(n / 10), n % 10];
+  return [Math.floor(n / 10), n % 10];
 }
 
-//Update function that runs every few hundred miliseconds
+function readTime() {
+  const now = new Date();
+
+  let hours = now.getHours();
+  if (SETTINGS.twelveHour) {
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+  }
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+
+  const digits = [...splitDigits(hours), ...splitDigits(minutes), ...splitDigits(seconds)];
+  return { hours, minutes, seconds, digits };
+}
+
+function flick(el) {
+  el.classList.remove('flick');
+  void el.offsetWidth;
+  el.classList.add('flick');
+}
+
+// CLOCK PANEL: nixie tubes
+
+const nixieEl = document.getElementById('nixie');
+const tubes = [];
+(function buildNixie() {
+  for (let i = 0; i < 6; i++) {
+    const t = document.createElement('div');
+    t.className = 'tube';
+    nixieEl.appendChild(t);
+    tubes.push(t);
+
+    if (i === 1 || i === 3) {
+      const sep = document.createElement('div');
+      sep.className = 'sep';
+      sep.innerHTML = '<i></i><i></i>';
+      nixieEl.appendChild(sep);
+    }
+  }
+})();
+
+
+// CLOCK PANEL: binary grid
+
+const clockGrid = document.getElementById('clockGrid');
+const clockCols = [];
+(function buildClockGrid() {
+  addWeights(clockGrid);
+  ['H', 'H', 'M', 'M', 'S', 'S'].forEach((name) => clockCols.push(makeColumn(clockGrid, name)));
+  clockGrid.children[3].classList.add('gap');
+  clockGrid.children[5].classList.add('gap');
+})();
+
+
+// PANEL 1: one clickable bit
+
+const demoBit = document.getElementById('demoBit');
+const demoBitText = document.getElementById('demoBitText');
+demoBit.addEventListener('click', () => {
+  const nowOn = demoBit.classList.toggle('on');
+  demoBitText.textContent = nowOn ? '1 (on)' : '0 (off)';
+});
+
+// PANEL 2: four clickable bits that add up
+
+const nibbleGrid = document.getElementById('nibbleGrid');
+const nibbleText = document.getElementById('nibbleText');
+addWeights(nibbleGrid);
+const nibbleSquares = makeColumn(nibbleGrid, '');
+
+function updateNibble() {
+  let total = 0, parts = [], bitsText = '';
+  nibbleSquares.forEach((sq, row) => {
+    const weight = 8 >> row;
+    const on = sq.classList.contains('on');
+    bitsText += on ? '1' : '0';
+    if (on) { total += weight; parts.push(weight); }
+  });
+  nibbleText.textContent = `${bitsText}  =  ${parts.length ? parts.join(' + ') : '0'}  =  ${total}`;
+}
+
+nibbleSquares.forEach((sq) => {
+  sq.classList.add('click');
+  sq.addEventListener('click', () => {
+    sq.classList.toggle('on');
+    updateNibble();
+  });
+});
+updateNibble();
+
+// PANEL 3: split a number into tens and units
+
+const splitInput = document.getElementById('splitInput');
+const splitText = document.getElementById('splitText');
+const splitColsEl = document.getElementById('splitCols');
+const splitTens = makeColumn(splitColsEl, 'tens');
+const splitUnits = makeColumn(splitColsEl, 'units');
+
+function updateSplit() {
+  let n = parseInt(splitInput.value, 10);
+  if (isNaN(n)) n = 0;
+  n = Math.max(0, Math.min(99, n));
+  const [tens, units] = splitDigits(n);
+  splitText.textContent = `${n} → tens ${tens}, units ${units}`;
+  setColumn(splitTens, tens);
+  setColumn(splitUnits, units);
+}
+splitInput.addEventListener('input', updateSplit);
+updateSplit();
+
+// PANEL 4: the AND test, row by row
+
+const testInput = document.getElementById('testInput');
+const testTable = document.getElementById('testTable');
+const testBinary = document.getElementById('testBinary');
+
+function updateTest() {
+  let n = parseInt(testInput.value, 10);
+  if (isNaN(n)) n = 0;
+  n = Math.max(0, Math.min(15, n));
+
+  testBinary.textContent = `${n} in binary is ${n.toString(2).padStart(4, '0')}`;
+
+  let html = '<tr><th>weight</th><th>test</th><th>result</th><th>square</th></tr>';
+  for (let row = 0; row < 4; row++) {
+    const w = 8 >> row;
+    const result = n & w;
+    const lit = result !== 0;
+    html += `<tr class="${lit ? 'lit' : ''}"><td>${w}</td><td>${n} &amp; ${w}</td><td>${result}</td><td>${lit ? 'ON' : 'off'}</td></tr>`;
+  }
+  testTable.innerHTML = html;
+}
+testInput.addEventListener('input', updateTest);
+updateTest();
+
+
+// PANEL 5: the whole chain, live
+
+const tgGrid = document.getElementById('tgGrid');
+const tgCols = [];
+addWeights(tgGrid);
+['H', 'H', 'M', 'M', 'S', 'S'].forEach((name) => tgCols.push(makeColumn(tgGrid, name)));
+
+
+// UPDATE
 
 function update() {
-    const now = new Date(); 
+  const { hours, minutes, seconds, digits } = readTime();
 
-    let hours = now.getHours();
-    if (SETTINGS.twelveHour) {
-        hours = hours % 12; 
-        if (hours === 0) hours = 12;
+  for (let i = 0; i < 6; i++) {
+    if (tubes[i].textContent !== String(digits[i])) {
+      tubes[i].textContent = digits[i];
+      flick(tubes[i]);
     }
-    const minutes = now.getMinutes();
-    const seconds = now.getSeconds();
+    setColumn(clockCols[i], digits[i]);
+    setColumn(tgCols[i], digits[i]);
+  }
 
-    // six digits left to right
-    const digits = [
-        ...splitDigits(hours),
-        ...splitDigits(minutes),
-        ...splitDigits(seconds),
-    ];
+  document.getElementById('binary').textContent =
+    `hours    ${pad(hours)} = ${hours.toString(2).padStart(5, '0')}\n` +
+    `minutes  ${pad(minutes)} = ${minutes.toString(2).padStart(6, '0')}\n` +
+    `seconds  ${pad(seconds)} = ${seconds.toString(2).padStart(6, '0')}`;
 
-    // light up the correct sqaures
-    // A sqaure will be lit only when its weight is part of the digits value
-
-    for (let col = 0; col < 6; col++) {
-        const value = digits[col];
-        for (let row = 0; row <4; row++) {
-            const weight = 8 >> row;              // 8,4,2,1
-            const isOn = (value & weight) !==0;    
-            bits[col][row].classList.toggle('on', isOn);
-        }
-    }
-
-    // Text readouts underneath
-
-    const pad = (n) => String(n).padStart(2, '0');
-    document.getElementById('readout').textContent = 
-    `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-
-    // the seconds written in binary, as a 6-bit number
-
-    document.getElementById('binary').textContent =
-`seconds ${seconds} in binary = ${seconds.toString(2).padStart(6, '0')}`;
+  document.getElementById('tgTime').textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  document.getElementById('tgDigits').textContent =
+    `[${digits[0]},${digits[1]}]  [${digits[2]},${digits[3]}]  [${digits[4]},${digits[5]}]`;
+  document.getElementById('tgBits').textContent =
+    digits.map((d) => d.toString(2).padStart(4, '0')).join('  ');
 }
 
 // BUTTONS
 
 document.getElementById('modeBtn').addEventListener('click', () => {
-    SETTINGS.twelveHour = !SETTINGS.twelveHour;
-    update();
+  SETTINGS.twelveHour = !SETTINGS.twelveHour;
+  update();
 });
 
 document.getElementById('colourBtn').addEventListener('click', () => {
-    colourIndex = (colourIndex + 1) % COLOURS.length; 
-    document.documentElement.style.setProperty('--on', COLOURS[colourIndex]);
+  colourIndex = (colourIndex + 1) % COLOURS.length;
+  document.documentElement.style.setProperty('--on', COLOURS[colourIndex]);
 });
 
-// START Function
 
-buildGrid();
+// SLIDER
+
+const PAGES = ['clock', 'bit', 'nibble', 'split', 'test', 'together'];
+const viewport = document.getElementById('viewport');
+const track = document.getElementById('track');
+const panels = Array.from(document.querySelectorAll('.page'));
+const N = panels.length;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// The track is N screens wide; each panel is exactly one screen of it.
+track.style.width = (N * 100) + '%';
+panels.forEach((p) => { p.style.flex = `0 0 ${100 / N}%`; });
+
+let pos = 0;
+let current = -1;
+let anim = null;
+let raf = 0;
+
+const easeInOutCubic = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const easeOutQuint = (k) => 1 - Math.pow(1 - k, 5);
+const clampIdx = (i) => Math.max(0, Math.min(N - 1, i));
+
+function render() {
+  track.style.transform = `translate3d(${(-pos / N) * 100}%, 0, 0)`;
+  viewport.style.backgroundPosition = `${-pos * viewport.clientWidth * 0.4}px 0`;
+
+  const nearest = clampIdx(Math.round(pos));
+  if (nearest !== current) { current = nearest; markCurrent(); }
+}
+
+function markCurrent() {
+  document.querySelectorAll('nav button').forEach((b) => {
+    const i = PAGES.indexOf(b.dataset.page);
+    const hidden = i !== current;
+    b.classList.toggle('current', !hidden);
+    b.classList.toggle('locked', hidden);
+    b.disabled = hidden;
+  });
+  panels.forEach((p, i) => { p.inert = i !== current; });
+}
+
+function settle() {
+  try { history.replaceState(null, '', '#' + PAGES[current]); } catch (e) { /* file:// may refuse */ }
+}
+
+function goTo(idx, ease = easeInOutCubic) {
+  const to = clampIdx(idx);
+  const dist = Math.abs(to - pos);
+  if (reduceMotion || dist < 0.001) {
+    anim = null; pos = to; render(); settle();
+    return;
+  }
+  anim = { from: pos, to, t0: performance.now(), dur: 450 + Math.min(dist, 3) * 180, ease };
+  if (!raf) raf = requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  if (!anim) { raf = 0; return; }
+  const k = Math.min(1, (now - anim.t0) / anim.dur);
+  pos = anim.from + (anim.to - anim.from) * anim.ease(k);
+  render();
+  if (k >= 1) { anim = null; raf = 0; settle(); return; }
+  raf = requestAnimationFrame(tick);
+}
+
+const heading = () => (anim ? anim.to : current);
+
+// Drag and swipe 
+let drag = null;
+let didDrag = false;
+
+viewport.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (e.target.closest('input')) return;
+  drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, pos0: pos,
+           startIdx: heading(), active: false, samples: [{ t: e.timeStamp, x: e.clientX }] };
+});
+
+viewport.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+
+  const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+  if (!drag.active) {
+    if (Math.abs(dx) < 6 || Math.abs(dx) < Math.abs(dy)) return;
+    drag.active = true; didDrag = true; anim = null;
+    drag.pos0 = pos; drag.x0 = e.clientX;
+    viewport.setPointerCapture(e.pointerId);
+    viewport.classList.add('dragging');
+  }
+
+  const w = viewport.clientWidth;
+  let raw = drag.pos0 - (e.clientX - drag.x0) / w;
+
+  if (raw < 0) raw *= 0.35;
+  else if (raw > N - 1) raw = N - 1 + (raw - (N - 1)) * 0.35;
+
+  pos = raw;
+  render();
+
+  drag.samples.push({ t: e.timeStamp, x: e.clientX });
+  drag.samples = drag.samples.filter((s) => s.t > e.timeStamp - 100);
+});
+
+function endDrag(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (!d.active) return;
+
+  viewport.classList.remove('dragging');
+  try { viewport.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+
+  let v = 0;
+  const s = d.samples;
+  if (s.length >= 2) {
+    const a = s[0], b = s[s.length - 1];
+    if (b.t > a.t) v = -(b.x - a.x) / (b.t - a.t) / viewport.clientWidth;
+  }
+
+  let target = Math.round(pos + v * 250);
+  target = Math.max(d.startIdx - 1, Math.min(d.startIdx + 1, target));
+  goTo(target, easeOutQuint);
+
+  setTimeout(() => { didDrag = false; }, 0);
+}
+viewport.addEventListener('pointerup', endDrag);
+viewport.addEventListener('pointercancel', endDrag);
+
+viewport.addEventListener('click', (e) => {
+  if (didDrag) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+
+// Mouse wheel and trackpad 
+let lastWheel = 0;
+viewport.addEventListener('wheel', (e) => {
+  const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+  const panel = panels[current];
+  const panelScrolls = panel.scrollHeight > panel.clientHeight + 1;
+  if (!horizontal && panelScrolls) return;
+
+  e.preventDefault();
+  const d = horizontal ? e.deltaX : e.deltaY;
+  const now = performance.now();
+  if (now - lastWheel > 180 && Math.abs(d) > 4) goTo(heading() + Math.sign(d));
+  lastWheel = now;
+}, { passive: false });
+
+//  Keyboard shortcuts
+addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('input')) return;
+  if (e.key === 'ArrowRight') goTo(heading() + 1);
+  if (e.key === 'ArrowLeft') goTo(heading() - 1);
+  if (e.key === 'Home') goTo(0);
+  if (e.key === 'End') goTo(N - 1);
+});
+
+//  Nav buttons and in-page links 
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-page]');
+  if (target) goTo(PAGES.indexOf(target.dataset.page));
+});
+
+addEventListener('hashchange', () => {
+  const i = PAGES.indexOf(location.hash.slice(1));
+  if (i >= 0 && i !== heading()) goTo(i);
+});
+
+addEventListener('resize', render);
+addEventListener('orientationchange', () => setTimeout(render, 150));
+
+viewport.addEventListener('scroll', () => { viewport.scrollLeft = 0; });
+
+// START
+
+const startIdx = PAGES.indexOf(location.hash.slice(1));
+pos = startIdx >= 0 ? startIdx : 0;
+render();
 update();
 setInterval(update, SETTINGS.updateEveryMs);
+
 </script>
 
 </body>
